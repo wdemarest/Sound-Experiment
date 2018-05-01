@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test of Human Sound Delay Recognition</title>
+		<script
+  src="https://code.jquery.com/jquery-3.3.1.js"
+  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+  crossorigin="anonymous"></script>
+		<script>
+    		let audioContext = new AudioContext();
+			let delay = 500;
+			let step = 500;
+			let results = {};
+			let rampTime = 0.005;
+			
+			function giveTest(){
+				$("#start").hide();
+    			$("#text").html("Playing sounds...");
+				let lastTime = playTones(delay);
+				setTimeout(function(){$("#text").html("Did you hear a delay between the tones?"); $("#yn").show();}, lastTime*1000);
+				console.log(delay)
+			}
+
+			function playTones(delay){
+				let o = audioContext.createOscillator();
+				let g = audioContext.createGain();
+				o.type = "sine";
+				g.gain.ramp = function(volume, timeDelta){
+					g.gain.lastTime = this.lastTime || audioContext.currentTime;
+					g.gain.exponentialRampToValueAtTime(volume, this.lastTime+timeDelta);
+					g.gain.lastTime += timeDelta;
+				}
+				o.connect(g);
+				g.gain.ramp(1.000, 0.50);
+				g.gain.ramp(0.001, rampTime);
+				g.gain.ramp(0.001, delay/1000);
+				g.gain.ramp(1.000, rampTime);
+				g.gain.ramp(1.000, 0.5);
+				g.gain.ramp(0.001, rampTime);
+				o.start();
+				o.stop([g.gain.lastTime + 0.001]);
+				g.connect(audioContext.destination);
+				return g.gain.lastTime - audioContext.currentTime;
+			}
+
+			function startProgram(){
+				$("#start").click(function() {
+					giveTest();
+				});
+				$("#yes").click(function() {
+					recordResults(true);
+				});
+				$("#no").click(function() {
+					recordResults(false);
+				});
+				$("#yn").hide();
+			}
+			function recordResults(detected){
+				results[delay] = detected;
+				$("#start").show();
+				$("#yn").hide();
+				$("#text").html("Press the button when you are ready for the next test.");
+				delay = newDelay(detected);
+				if (delay < 0.1) {
+					$("#text").html("You can hear sound delays down to "+(delay+((rampTime*2)*1000))+" thousandths of a second.");
+					$("#start").hide();
+				}
+			}
+			function newDelay(detected){
+				if (detected){
+					step = step*0.5;
+					return delay-step;
+				}else{
+					let halvedBefore = objContains(results, false);
+					if(halvedBefore){
+						step = step*0.5;
+						return delay+step;
+					}else{
+						return delay*2;
+					}
+				}
+			}
+			function objContains(obj, value){
+				for (const k in obj) {
+				    if (obj[k] === value) {
+				        return true;
+				    }
+				}
+			}
+
+			$(function(){
+				startProgram();
+			})
+		</script>
+	</head>
+	<body>
+		<div id="text"></div>
+		<button id="start">Play Sounds</button>
+		<div id="yn">
+			<button id="yes">Yes</button>
+			<button id="no">No</button>
+		</div>
+	</body>
+</html>
